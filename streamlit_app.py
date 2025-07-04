@@ -1,4 +1,4 @@
-#import streamlit as st
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader # For PDF parsing
