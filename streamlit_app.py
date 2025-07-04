@@ -7,8 +7,8 @@ import io
 import os
 
 # For LLM integration:
-import google.generativeai as genai # Activating Google Gemini
-# from openai import OpenAI # Commenting out OpenAI
+# import google.generativeai as genai # Commenting out Google Gemini
+from openai import OpenAI # Activating OpenAI
 
 # --- API Key Configuration ---
 # IMPORTANT: Do NOT hardcode your API key here.
@@ -58,29 +58,26 @@ def scrape_website_text(url):
 
 def generate_memo_section_llm(section_name, prompt, document_text, api_key):
     """
-    Generates a memo section using a Google Gemini LLM.
+    Generates a memo section using an OpenAI LLM.
     This function requires a valid API key.
     """
     if not api_key:
-        return f"Please provide a Gemini API key in Streamlit secrets to generate {section_name}."
+        return f"Please provide an OpenAI API key in Streamlit secrets to generate {section_name}."
 
     try:
-        genai.configure(api_key=api_key)
-        # Using 'gemini-1.5-flash' as it's an auto-updating alias and good balance.
-        # You can also use 'gemini-1.5-pro' for more advanced reasoning if preferred.
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        client = OpenAI(api_key=api_key)
 
-        # Combine prompt and document text for the LLM
-        full_prompt = f"{prompt}\n\nHere is the relevant document text to analyze:\n\n{document_text}"
-
-        # Simple truncation for demonstration; adjust based on model context window
-        # Gemini 1.5 Flash has a very large context window (1M tokens), so truncation might not be strictly needed for typical docs,
-        # but it's good practice for extremely long inputs.
-        if len(full_prompt) > 900000: # Adjust based on actual token limits if needed, 1M is roughly 900k characters.
-            full_prompt = full_prompt[:900000] + "...\n(Text truncated due to length)"
-
-        response = model.generate_content(full_prompt)
-        return response.text.strip()
+        # Using 'gpt-4o' as the recommended model. You can switch to 'gpt-4o-mini' for lower cost.
+        response = client.chat.completions.create(
+            model="gpt-4o", # Or "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"
+            messages=[
+                {"role": "system", "content": "You are an expert investment analyst assistant. Your task is to extract and summarize information from provided documents to create sections of an investment memo. Be concise, factual, and directly answer the prompt based *only* on the provided text."},
+                {"role": "user", "content": f"{prompt}\n\nHere is the relevant document text to analyze:\n\n{document_text}"}
+            ],
+            temperature=0.7, # Adjust creativity; 0.7 is a good balance
+            max_tokens=1000 # Limit response length to avoid excessive cost/length
+        )
+        return response.choices[0].message.content.strip()
     except Exception as e:
         st.error(f"Error generating {section_name}: {e}")
         return f"Could not generate {section_name}. Error: {e}"
@@ -94,8 +91,8 @@ The AI will extract key information, and you'll have the opportunity to review a
 """)
 
 # When deployed to Streamlit Cloud, the API key will be loaded from secrets.toml
-# Ensure your secret is named "gemini_api_key"
-google_api_key = st.secrets["gemini_api_key"] if "gemini_api_key" in st.secrets else None
+# Ensure your secret is named "openai_api_key"
+openai_api_key = st.secrets["openai_api_key"] if "openai_api_key" in st.secrets else None
 
 # --- Input Section ---
 st.header("1. Input Company Information")
@@ -122,8 +119,8 @@ if st.button("Generate Memo"):
         st.warning("Please upload a pitch deck or provide a website URL.")
     elif not all_document_text.strip():
         st.error("Could not extract any meaningful text from the provided sources. Please check the files/URL.")
-    elif not google_api_key: # Checking for the Gemini API key
-        st.error("Gemini API Key not found in Streamlit secrets. Please configure it for the AI to work.") # Updated message
+    elif not openai_api_key: # Checking for the OpenAI API key
+        st.error("OpenAI API Key not found in Streamlit secrets. Please configure it for the AI to work.")
     else:
         st.header("2. Review and Edit Investment Memo")
 
@@ -144,8 +141,8 @@ if st.button("Generate Memo"):
         for section, prompt in memo_sections.items():
             with st.expander(f"Generating: {section}"):
                 with st.spinner(f"Extracting {section}..."):
-                    # Pass the Google API key to the LLM generation function
-                    generated_content = generate_memo_section_llm(section, prompt, all_document_text, google_api_key)
+                    # Pass the OpenAI API key to the LLM generation function
+                    generated_content = generate_memo_section_llm(section, prompt, all_document_text, openai_api_key)
                     st.success(f"Extracted {section}!")
             # Create a text area for each section, pre-filled with generated content
             generated_memo_content[section] = st.text_area(
@@ -173,6 +170,6 @@ if st.button("Generate Memo"):
 st.sidebar.header("About This Agent")
 st.sidebar.info("""
 This AI agent assists in generating initial investment memos by extracting information from pitch decks and websites.
-It relies on an LLM (Google Gemini) for intelligent extraction and provides an editable interface.
+It relies on an LLM (OpenAI) for intelligent extraction and provides an editable interface.
 """)
 st.markdown("""---""")
