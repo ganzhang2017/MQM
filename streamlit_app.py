@@ -83,7 +83,7 @@ def generate_memo_section_llm(section_name, prompt, document_text, api_key):
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro') # Or 'gemini-1.5-flash', 'gemini-1.5-pro'
+        model = genai.GenerativeModel('gemini-1.5-flash') # Or 'gemini-1.5-flash', 'gemini-1.5-pro'
 
         # Combine prompt and document text for the LLM
         full_prompt = f"{prompt}\n\nHere is the relevant document text to analyze:\n\n{document_text}"
