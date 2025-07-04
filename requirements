@@ -3,4 +3,4 @@ requests
 beautifulsoup4
 PyPDF2
 python-pptx
-google-generativeai # If using Google Gemini. If OpenAI, replace with 'openai'
+google-generativeai>=1.0.0 # If using Google Gemini. If OpenAI, replace with 'openai'
