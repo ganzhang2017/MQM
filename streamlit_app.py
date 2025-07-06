@@ -58,27 +58,41 @@ def scrape_website_text(url):
 
 def generate_memo_section_llm(section_name, prompt, document_text, api_key):
     """
-    Generates a memo section using an OpenAI LLM.
-    This function requires a valid API key.
+    Generates a memo section using an LLM via OpenRouter.
+    This function requires a valid OpenRouter API key.
     """
     if not api_key:
-        return f"Please provide an OpenAI API key in Streamlit secrets to generate {section_name}."
+        return f"Please provide an API key in Streamlit secrets to generate {section_name}."
 
     try:
+        # Initialize OpenAI client to connect to OpenRouter
         client = OpenAI(
-    base_url="https://openrouter.ai/api/v1", # This is the key change!
-    api_key=api_key
-)
+            base_url="https://openrouter.ai/api/v1", # OpenRouter's API endpoint
+            api_key=api_key,
+            # Optional: OpenRouter often uses these for analytics/ranking
+            # You can remove them if not needed or if they cause issues
+            default_headers={
+                # Replace with your actual Streamlit app URL for OpenRouter's analytics
+                "HTTP-Referer": "https://your-streamlit-app-url.streamlit.app/",
+                "X-Title": "AI Investment Memo Generator",
+            }
+        )
 
-        # Using 'gpt-4o' as the recommended model. You can switch to 'gpt-4o-mini' for lower cost.
+        # Use an OpenRouter-compatible model name.
+        # "openai/gpt-4o" routes GPT-4o through OpenRouter.
+        # You can choose other models from https://openrouter.ai/models
+        # For example: "anthropic/claude-3-5-sonnet", "mistralai/mistral-large"
+        model_to_use = "openai/gpt-4o" # Keep this or choose another from OpenRouter's list
+
         response = client.chat.completions.create(
-    model="openai/gpt-4o", # You can keep this if OpenRouter routes it, or pick another
-    # model="anthropic/claude-3.5-sonnet", # Example of another model via OpenRouter
-    messages=[
-        # ...
-    ],
-    # ...
-)
+            model=model_to_use,
+            messages=[ # CORRECTED: Ensure valid message format here
+                {"role": "system", "content": "You are an expert investment analyst assistant. Your task is to extract and summarize information from provided documents to create sections of an investment memo. Be concise, factual, and directly answer the prompt based *only* on the provided text."},
+                {"role": "user", "content": f"{prompt}\n\nHere is the relevant document text to analyze:\n\n{document_text}"}
+            ],
+            temperature=0.7, # Adjust creativity; 0.7 is a good balance
+            max_tokens=1000 # Limit response length to avoid excessive cost/length
+        )
         return response.choices[0].message.content.strip()
     except Exception as e:
         st.error(f"Error generating {section_name}: {e}")
@@ -93,7 +107,7 @@ The AI will extract key information, and you'll have the opportunity to review a
 """)
 
 # When deployed to Streamlit Cloud, the API key will be loaded from secrets.toml
-# Ensure your secret is named "openai_api_key"
+# Ensure your secret is named "openai_api_key" (or "openrouter_api_key" if you rename it everywhere)
 openai_api_key = st.secrets["openai_api_key"] if "openai_api_key" in st.secrets else None
 
 # --- Input Section ---
@@ -121,8 +135,8 @@ if st.button("Generate Memo"):
         st.warning("Please upload a pitch deck or provide a website URL.")
     elif not all_document_text.strip():
         st.error("Could not extract any meaningful text from the provided sources. Please check the files/URL.")
-    elif not openai_api_key: # Checking for the OpenAI API key
-        st.error("OpenAI API Key not found in Streamlit secrets. Please configure it for the AI to work.")
+    elif not openai_api_key: # Checking for the API key in secrets
+        st.error("API Key not found in Streamlit secrets. Please configure it for the AI to work.")
     else:
         st.header("2. Review and Edit Investment Memo")
 
@@ -143,7 +157,6 @@ if st.button("Generate Memo"):
         for section, prompt in memo_sections.items():
             with st.expander(f"Generating: {section}"):
                 with st.spinner(f"Extracting {section}..."):
-                    # Pass the OpenAI API key to the LLM generation function
                     generated_content = generate_memo_section_llm(section, prompt, all_document_text, openai_api_key)
                     st.success(f"Extracted {section}!")
             # Create a text area for each section, pre-filled with generated content
@@ -172,6 +185,6 @@ if st.button("Generate Memo"):
 st.sidebar.header("About This Agent")
 st.sidebar.info("""
 This AI agent assists in generating initial investment memos by extracting information from pitch decks and websites.
-It relies on an LLM (OpenAI) for intelligent extraction and provides an editable interface.
+It relies on an LLM (via OpenRouter) for intelligent extraction and provides an editable interface.
 """)
 st.markdown("""---""")
