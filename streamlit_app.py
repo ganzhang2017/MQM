@@ -65,18 +65,20 @@ def generate_memo_section_llm(section_name, prompt, document_text, api_key):
         return f"Please provide an OpenAI API key in Streamlit secrets to generate {section_name}."
 
     try:
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(
+    base_url="https://openrouter.ai/api/v1", # This is the key change!
+    api_key=api_key
+)
 
         # Using 'gpt-4o' as the recommended model. You can switch to 'gpt-4o-mini' for lower cost.
         response = client.chat.completions.create(
-            model="gpt-4o", # Or "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"
-            messages=[
-                {"role": "system", "content": "You are an expert investment analyst assistant. Your task is to extract and summarize information from provided documents to create sections of an investment memo. Be concise, factual, and directly answer the prompt based *only* on the provided text."},
-                {"role": "user", "content": f"{prompt}\n\nHere is the relevant document text to analyze:\n\n{document_text}"}
-            ],
-            temperature=0.7, # Adjust creativity; 0.7 is a good balance
-            max_tokens=1000 # Limit response length to avoid excessive cost/length
-        )
+    model="openai/gpt-4o", # You can keep this if OpenRouter routes it, or pick another
+    # model="anthropic/claude-3.5-sonnet", # Example of another model via OpenRouter
+    messages=[
+        # ...
+    ],
+    # ...
+)
         return response.choices[0].message.content.strip()
     except Exception as e:
         st.error(f"Error generating {section_name}: {e}")
